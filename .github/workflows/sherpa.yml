@@ -1,0 +1,44 @@
+name: Sherpa native assets
+
+on:
+  push:
+    tags: ["sherpa-onnx-*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing Sherpa release tag
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  transfer:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+      - name: Verify and publish native assets
+        run: |
+          work=$(mktemp -d "$RUNNER_TEMP/sherpa.XXXXXX")
+          gh release download "$TAG" -R vicnoah/mygo-cloudmusic --pattern '*.gz' -D "$work"
+          python3 - "$work" <<'PY'
+          from hashlib import file_digest
+          from pathlib import Path
+          import re
+          import sys
+          work = Path(sys.argv[1])
+          data = Path("internal/speech/natives.go").read_text()
+          expected = dict(re.findall(r'asset: "([^"]+)"[^\n]+gzSHA256: "([0-9a-f]{64})"', data))
+          assert expected and expected.keys() == {f.name for f in work.glob("*.gz")}
+          for asset, sha in expected.items():
+              with (work / asset).open("rb") as stream:
+                  assert file_digest(stream, "sha256").hexdigest() == sha, asset
+          PY
+          gh release create "$TAG" -R "$GITHUB_REPOSITORY" --verify-tag --prerelease --latest=false \
+            --title "$TAG" --notes '供网易云插件下载的字幕原生依赖，保留既有六目标二进制与 SHA-256。' \
+            "$work/"*.gz scripts/sherpa/ThirdPartyLicenses.txt
