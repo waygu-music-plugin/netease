@@ -52,12 +52,19 @@ func RestoreSession() bool {
 // SaveSession keeps the login cookies of the jar in the keychain.
 func SaveSession() error {
 	var parts []string
+	hasSession := false
 	for _, c := range httpClient.Jar.Cookies(siteURL) {
+		if c.Value == "" {
+			continue
+		}
+		if c.Name == "MUSIC_U" {
+			hasSession = true
+		}
 		if c.Name == "MUSIC_U" || c.Name == "__csrf" {
 			parts = append(parts, c.Name+"="+c.Value)
 		}
 	}
-	if len(parts) == 0 {
+	if !hasSession {
 		return errors.New("no session cookie")
 	}
 	return sessionCredential.Write([]byte(strings.Join(parts, "; ")))

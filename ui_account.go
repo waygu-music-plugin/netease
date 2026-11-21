@@ -1,6 +1,7 @@
 package netease
 
 import (
+	"errors"
 	"runtime"
 	"time"
 
@@ -129,7 +130,11 @@ func (a *app) pollLogin(gen int, key string) {
 				case err != nil:
 					// Try again: the network may come back.
 				case code == netease.QRConfirmed:
-					_ = netease.SaveSession()
+					if saveErr := netease.SaveSession(); errors.Is(saveErr, errors.ErrUnsupported) {
+						a.toast = "系统凭据库不可用，重启后需要重新登录"
+					} else if saveErr != nil {
+						a.toast = "无法保存登录状态，重启后需要重新登录"
+					}
 					l.status, l.finished = code, true
 					a.signedIn(prof)
 					if prof != nil {
