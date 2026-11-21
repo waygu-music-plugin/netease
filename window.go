@@ -31,6 +31,9 @@ func startApp(start pluginapi.Startup, a *app) pluginapi.Adapter {
 	start.RegisterLifecycle(pluginapi.Lifecycle{
 		Activate: a.activate,
 		Ready: func(event pluginapi.Activation) {
+			if event.Main != nil {
+				a.fullscreen.bind(event.Main, a.host.Invalidate)
+			}
 			a.boot()
 		},
 		Deactivate:  func(bool) { a.deactivate() },
@@ -110,6 +113,7 @@ func (a *app) activate(ctx context.Context, continuity pluginapi.PlaybackContinu
 }
 
 func (a *app) deactivate() {
+	a.fullscreen.restore()
 	if a.npOpen {
 		a.host.SetMainWindowButtonsTheme(mygo.ThemeSystem)
 	}

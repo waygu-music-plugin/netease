@@ -40,6 +40,7 @@ type route struct {
 // app is the state both windows show. Everything in it is read and changed
 // on the main thread: by the views, and by goroutines through post.
 type app struct {
+	fullscreen      playbackFullscreen
 	notch           *notch
 	host            pluginapi.Services
 	pl              *playback

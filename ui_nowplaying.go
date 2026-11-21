@@ -7,8 +7,8 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
-	"github.com/waygu-music-plugin/sdk/pluginapi/lyrics"
 	"github.com/waygu-music-plugin/netease/internal/client"
+	"github.com/waygu-music-plugin/sdk/pluginapi/lyrics"
 )
 
 var white = ui.RGB(255, 255, 255)
@@ -24,6 +24,9 @@ const npSettle = 600 * time.Millisecond
 func (a *app) npState(c *ui.Context) (open, settled bool) {
 	open = a.nowPlaying && a.pl.Current() != nil
 	now := c.Now()
+	if !open {
+		a.fullscreen.restore()
+	}
 	if open != a.npOpen {
 		a.npOpen, a.npChangedAt = open, now
 		// A build once it is at rest: to stop painting what it covers, or
@@ -132,6 +135,7 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art artwork, acce
 				}
 			})
 		})
+		a.fullscreen.button(c, w, pointerIn, a.npPane == paneLyrics || a.npPane == paneStage)
 		if a.npPane == paneStage {
 			// The stage takes the whole view: the lyrics are the show, the
 			// controls a slim bar at the foot.
