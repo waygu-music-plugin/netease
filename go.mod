@@ -5,7 +5,7 @@ go 1.27.3
 require (
 	github.com/ebitengine/purego v0.11.1
 	github.com/egoist/mygo v0.10.0
-	github.com/waygu-music-plugin/sdk v0.1.2
+	github.com/waygu-music-plugin/sdk v0.1.3
 	rsc.io/qr v0.2.0
 )
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"github.com/waygu-music-plugin/sdk/desktop"
 )
 
 func (a *app) settingsWindow(c *ui.Context) {
@@ -70,6 +71,30 @@ func (a *app) settingsWindow(c *ui.Context) {
 			})
 		}
 
+		if state.DesktopLyricsColorAvailable || state.StatusLyricsAvailable || state.LyricsFontAvailable {
+			group("歌词", func() {
+				if state.LyricsFontAvailable {
+					row("歌词字体", "", func() {
+						desktop.LyricsFontFamilyControl(c.Key("lyrics-font-family"), a.host, state)
+					})
+				}
+				if state.DesktopLyricsColorAvailable {
+					row("桌面歌词颜色", "", func() {
+						desktop.LyricsColorControl(c.Key("desktop-lyrics-color"), a.host, state, a.desktopLyricsPreset(a.host.DesktopLyricsState().Color))
+					})
+				}
+				if state.StatusLyricsAvailable {
+					row("任务栏歌词", "在系统任务栏或菜单栏显示歌词", func() {
+						desktop.StatusLyricsControl(c.Key("status-lyrics"), a.host, state)
+					})
+				}
+				if state.TaskbarLyricsFontSize > 0 {
+					row("任务栏歌词字号", "", func() {
+						desktop.TaskbarLyricsFontControl(c.Key("taskbar-lyrics-font"), a.host, state)
+					})
+				}
+			})
+		}
 		// Only on macOS, the one with a notch player.
 		if state.NotchAvailable {
 			group("刘海播放器", func() {

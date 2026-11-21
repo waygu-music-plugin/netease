@@ -7,8 +7,10 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"github.com/waygu-music-plugin/sdk/pluginapi/lyrics"
 	"github.com/waygu-music-plugin/netease/internal/client"
+	"github.com/waygu-music-plugin/sdk/desktop"
+	"github.com/waygu-music-plugin/sdk/pluginapi"
+	"github.com/waygu-music-plugin/sdk/pluginapi/lyrics"
 )
 
 const (
@@ -56,11 +58,11 @@ func (a *app) desktopLyricsLyrics(c *ui.Context) {
 		Justify(ui.End).AlignItems(ui.Center).Padding(0, 0, 2, 0).Gap(4).PassThrough().Children(func() {
 		switch {
 		case !loaded:
-			desktopLyricsMessage(c, tr.Name, 28, 800)
+			desktopLyricsMessage(c, tr.Name, 28, 800, a.desktopLyricsForeground(), a.desktopLyrics.FontFamily)
 		case len(lines) == 0:
-			desktopLyricsMessage(c, desktopLyricsTrackLabel(tr), 26, 700)
+			desktopLyricsMessage(c, desktopLyricsTrackLabel(tr), 26, 700, a.desktopLyricsForeground(), a.desktopLyrics.FontFamily)
 		case cur < 0:
-			desktopLyricsMessage(c, lines[0].Text, 28, 800)
+			desktopLyricsMessage(c, lines[0].Text, 28, 800, a.desktopLyricsForeground(), a.desktopLyrics.FontFamily)
 		default:
 			a.desktopLyricsLine(c, lines, cur, pos)
 		}
@@ -108,6 +110,9 @@ func (a *app) desktopLyricsControls(c *ui.Context) {
 		if desktopLyricsColorButton(c.Key("color"), a.desktopLyricsAccent(), "切换歌词颜色").Clicked() {
 			a.desktopLyrics.Color = (a.desktopLyrics.Color + 1) % len(desktopLyricsColors)
 			a.host.SetDesktopLyricsStyle(a.desktopLyrics.ShowTranslation, a.desktopLyrics.FontSize, a.desktopLyrics.Color)
+			if settings, ok := a.host.(pluginapi.LyricsSettingsServices); ok {
+				settings.SetDesktopLyricsColor("")
+			}
 		}
 		if iconButton(c.Key("close"), iconX, 17, muted, "关闭桌面歌词").Clicked() {
 			a.host.HideDesktopLyrics()
@@ -115,11 +120,11 @@ func (a *app) desktopLyricsControls(c *ui.Context) {
 	})
 }
 
-func desktopLyricsMessage(c *ui.Context, text string, fontSize float32, weight int) {
+func desktopLyricsMessage(c *ui.Context, text string, fontSize float32, weight int, color ui.Color, font string) {
 	lineHeight := fontSize * 1.2
 	ui.Box(c).Width(desktopLyricsWidth).Height(lineHeight + 4).Children(func() {
-		ui.Text(c, text).Absolute().Top(2).Left(0).Width(desktopLyricsWidth).FontSize(fontSize).FontWeight(weight).FixedLineHeight(lineHeight).TextColor(ui.RGBA(0, 0, 0, 0.72)).TextAlign(ui.Center).SingleLine().Label("桌面歌词提示阴影")
-		ui.Text(c, text).Absolute().Top(0).Left(0).Width(desktopLyricsWidth).FontSize(fontSize).FontWeight(weight).FixedLineHeight(lineHeight).TextColor(ui.RGBA(255, 255, 255, 0.96)).TextAlign(ui.Center).SingleLine().Label("桌面歌词提示")
+		ui.Text(c, text).Absolute().Top(2).Left(0).Width(desktopLyricsWidth).Font(font).FontSize(fontSize).FontWeight(weight).FixedLineHeight(lineHeight).TextColor(ui.RGBA(0, 0, 0, 0.72)).TextAlign(ui.Center).SingleLine().Label("桌面歌词提示阴影")
+		ui.Text(c, text).Absolute().Top(0).Left(0).Width(desktopLyricsWidth).Font(font).FontSize(fontSize).FontWeight(weight).FixedLineHeight(lineHeight).TextColor(color).TextAlign(ui.Center).SingleLine().Label("桌面歌词提示")
 	})
 }
 
@@ -141,14 +146,25 @@ func desktopLyricsColorButton(c *ui.Context, color ui.Color, label string) ui.El
 	return b
 }
 
+func (a *app) desktopLyricsForeground() ui.Color {
+	return desktop.LyricsColor(a.desktopLyrics.CustomColor, ui.RGBA(255, 255, 255, 0.96))
+}
+
 func (a *app) desktopLyricsAccent() ui.Color {
-	if a.desktopLyrics.Color == 0 {
+	if color, ok := desktop.ParseLyricsColor(a.desktopLyrics.CustomColor); ok {
+		return color
+	}
+	return a.desktopLyricsPreset(a.desktopLyrics.Color)
+}
+
+func (a *app) desktopLyricsPreset(preset int) ui.Color {
+	if preset == 0 {
 		if a.pal.accent.A != 0 {
 			return a.pal.accent
 		}
 		return ui.RGB(255, 116, 80)
 	}
-	return desktopLyricsColors[a.desktopLyrics.Color%len(desktopLyricsColors)]
+	return desktopLyricsColors[preset%len(desktopLyricsColors)]
 }
 
 var desktopLyricsColors = []ui.Color{
@@ -214,8 +230,8 @@ func (a *app) desktopLyricsPair(c *ui.Context, l lyrics.Line, pos time.Duration,
 			// translation shadow here would be positioned against the whole pair
 			// and cover the original lyric.
 			if !live || len(l.Words) == 0 {
-				ui.Text(c, l.Text).Absolute().Top(2).Left(0).Width(desktopLyricsWidth).FontSize(fontSize).FontWeight(800).FixedLineHeight(textLineHeight).TextColor(ui.RGBA(0, 0, 0, 0.72)).TextAlign(ui.Center).SingleLine().Label("桌面歌词原文阴影")
-				ui.Text(c, l.Text).Absolute().Top(0).Left(0).Width(desktopLyricsWidth).FontSize(fontSize).FontWeight(800).FixedLineHeight(textLineHeight).TextColor(ui.RGBA(255, 255, 255, 0.96)).TextAlign(ui.Center).SingleLine().Label("桌面歌词原文")
+				ui.Text(c, l.Text).Absolute().Top(2).Left(0).Width(desktopLyricsWidth).Font(a.desktopLyrics.FontFamily).FontSize(fontSize).FontWeight(800).FixedLineHeight(textLineHeight).TextColor(ui.RGBA(0, 0, 0, 0.72)).TextAlign(ui.Center).SingleLine().Label("桌面歌词原文阴影")
+				ui.Text(c, l.Text).Absolute().Top(0).Left(0).Width(desktopLyricsWidth).Font(a.desktopLyrics.FontFamily).FontSize(fontSize).FontWeight(800).FixedLineHeight(textLineHeight).TextColor(a.desktopLyricsForeground()).TextAlign(ui.Center).SingleLine().Label("桌面歌词原文")
 				return
 			}
 			spans := a.desktopLyricsWordSpans(l.Words, pos, fontSize)
@@ -224,14 +240,14 @@ func (a *app) desktopLyricsPair(c *ui.Context, l lyrics.Line, pos time.Duration,
 			// word in YRC, and rebuilding the runs independently can move only the
 			// shadow when the lyric contains spaces.
 			shadowSpans := desktopLyricsShadowSpans(spans)
-			ui.RichText(c, shadowSpans...).Absolute().Top(2).Left(0).Width(desktopLyricsWidth).FontSize(fontSize).FontWeight(800).FixedLineHeight(textLineHeight).TextAlign(ui.Center).SingleLine().Label("桌面歌词原文阴影")
-			ui.RichText(c, spans...).Absolute().Top(0).Left(0).Width(desktopLyricsWidth).FontSize(fontSize).FontWeight(800).FixedLineHeight(textLineHeight).TextAlign(ui.Center).SingleLine().Label("桌面歌词原文")
+			ui.RichText(c, shadowSpans...).Absolute().Top(2).Left(0).Width(desktopLyricsWidth).Font(a.desktopLyrics.FontFamily).FontSize(fontSize).FontWeight(800).FixedLineHeight(textLineHeight).TextAlign(ui.Center).SingleLine().Label("桌面歌词原文阴影")
+			ui.RichText(c, spans...).Absolute().Top(0).Left(0).Width(desktopLyricsWidth).Font(a.desktopLyrics.FontFamily).FontSize(fontSize).FontWeight(800).FixedLineHeight(textLineHeight).TextAlign(ui.Center).SingleLine().Label("桌面歌词原文")
 		})
 		if a.desktopLyrics.ShowTranslation && l.Translation != "" {
 			ui.Box(c).Width(desktopLyricsWidth).Height(rowHeight).Children(func() {
 				accent := a.desktopLyricsAccent()
-				ui.Text(c, l.Translation).Absolute().Top(2).Left(0).Width(desktopLyricsWidth).FontSize(fontSize).FontWeight(600).FixedLineHeight(textLineHeight).TextColor(ui.RGBA(0, 0, 0, 0.72)).TextAlign(ui.Center).SingleLine().Label("桌面歌词译文阴影")
-				ui.Text(c, l.Translation).Absolute().Top(0).Left(0).Width(desktopLyricsWidth).FontSize(fontSize).FontWeight(600).FixedLineHeight(textLineHeight).TextColor(accent.Alpha(0.96)).TextAlign(ui.Center).SingleLine().Label("桌面歌词译文")
+				ui.Text(c, l.Translation).Absolute().Top(2).Left(0).Width(desktopLyricsWidth).Font(a.desktopLyrics.FontFamily).FontSize(fontSize).FontWeight(600).FixedLineHeight(textLineHeight).TextColor(ui.RGBA(0, 0, 0, 0.72)).TextAlign(ui.Center).SingleLine().Label("桌面歌词译文阴影")
+				ui.Text(c, l.Translation).Absolute().Top(0).Left(0).Width(desktopLyricsWidth).Font(a.desktopLyrics.FontFamily).FontSize(fontSize).FontWeight(600).FixedLineHeight(textLineHeight).TextColor(accent.Alpha(0.96)).TextAlign(ui.Center).SingleLine().Label("桌面歌词译文")
 			})
 		} else {
 			ui.Box(c).Width(desktopLyricsWidth).Height(rowHeight)
@@ -240,11 +256,12 @@ func (a *app) desktopLyricsPair(c *ui.Context, l lyrics.Line, pos time.Duration,
 }
 
 func (a *app) desktopLyricsWordSpans(words []lyrics.Word, pos time.Duration, fontSize float32) []ui.Span {
+	accent := a.desktopLyricsAccent()
 	spans := make([]ui.Span, 0, len(words))
 	for _, w := range words {
 		color := ui.RGBA(255, 255, 255, 0.96)
 		if pos >= w.End {
-			color = a.desktopLyricsAccent()
+			color = accent
 		}
 		spans = append(spans, ui.Span{Text: w.Text, Size: fontSize, Weight: 800, Color: color})
 	}
